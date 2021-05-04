@@ -9,40 +9,41 @@ using UnityStandardAssets.CrossPlatformInput;
 public class PlayerScript : MonoBehaviour
 {
     [SerializeField] private float speed, jumpSpeed;
-    [SerializeField] Collider2D _feetCollider, _bodyCollider;
-    [SerializeField] Tilemap _destructible;
+    [SerializeField] Collider2D feetCollider, bodyCollider;
     
     private Rigidbody2D _rb;
     private Animator _anim;
-
-
-    private bool isGrounded = true;
-    private bool isFacingLeft, climbing;
-    private float initialGravityScale;
+    
+    private bool _isGrounded = true;
+    private bool _isFacingLeft, _isClimbing, _isHurting;
+    private float _initialGravityScale;
+    
+    private static readonly int Hit = Animator.StringToHash("Hit");
+    private static readonly int Jumping = Animator.StringToHash("Jumping");
+    private static readonly int Falling = Animator.StringToHash("Falling");
+    private static readonly int Climbing = Animator.StringToHash("Climbing");
+    private static readonly int Running = Animator.StringToHash("Running");
 
     private void Start()
     {
         _rb = GetComponent<Rigidbody2D>();
         _anim = GetComponent<Animator>();
-        initialGravityScale = _rb.gravityScale;
+        _initialGravityScale = _rb.gravityScale;
     }
 
     private void Update()
     {
-        if (!isGrounded && _feetCollider.IsTouchingLayers(LayerMask.GetMask("Destructible")))
+        if (!_isHurting)
         {
-            Vector3 hitPosition = new Vector3(transform.position.x, transform.position.y - 1, 0);
-            _destructible.SetTile(_destructible.WorldToCell(hitPosition), null);
+            Move();
+            Jump();
+            Climb();
         }
-        Movement();
-        Jump();
-        Climb();
     }
 
-    private void Movement()
+    private void Move()
     {
         float hAxis = CrossPlatformInputManager.GetAxis("Horizontal");
-        
         _rb.velocity = new Vector2(speed * hAxis, _rb.velocity.y);
         
         FlipSprite(hAxis);
@@ -51,50 +52,77 @@ public class PlayerScript : MonoBehaviour
     private void Climb()
     {
         float vAxis = CrossPlatformInputManager.GetAxis("Vertical");
-
-        if (Mathf.Abs(vAxis) > Mathf.Epsilon && _bodyCollider.IsTouchingLayers(LayerMask.GetMask("Climbable")))
+        
+        if (Mathf.Abs(vAxis) > Mathf.Epsilon && bodyCollider.IsTouchingLayers(LayerMask.GetMask("Climbable")))
         {
             _rb.velocity = new Vector2(_rb.velocity.x, speed * vAxis);
             _rb.gravityScale = 0f;
-            climbing = true;
+            _isClimbing = true;
         }
-        else if (climbing && _bodyCollider.IsTouchingLayers(LayerMask.GetMask("Climbable")))
+        else if (_isClimbing && bodyCollider.IsTouchingLayers(LayerMask.GetMask("Climbable")))
         {
             _rb.velocity = new Vector2(_rb.velocity.x, 0);
             _rb.gravityScale = 0f;
         }
         else
         {
-            _rb.gravityScale = initialGravityScale;
-            climbing = false;
+            _rb.gravityScale = _initialGravityScale;
+            _isClimbing = false;
         }
         
         
-        _anim.SetBool("Climbing", climbing);
+        _anim.SetBool(Climbing, _isClimbing);
         
         
     }
 
     private void Jump()
     {
-        isGrounded = _feetCollider.IsTouchingLayers(LayerMask.GetMask("Ground")) || _feetCollider.IsTouchingLayers(LayerMask.GetMask("Destructible"));
-        _anim.SetBool("Jumping", !isGrounded && _rb.velocity.y > 0);
-        _anim.SetBool("Falling", !isGrounded && _rb.velocity.y <= 0);
+        _isGrounded = feetCollider.IsTouchingLayers(LayerMask.GetMask("Ground"));
+        _anim.SetBool(Jumping, !_isGrounded && _rb.velocity.y > 0);
+        _anim.SetBool(Falling, !_isGrounded && _rb.velocity.y <= 0);
 
-        if (isGrounded && CrossPlatformInputManager.GetButtonDown("Jump"))
+        if (_isGrounded && CrossPlatformInputManager.GetButtonDown("Jump"))
         {
             _rb.velocity = new Vector2(_rb.velocity.x, jumpSpeed);
+        }
+    }
+
+    private void OnCollisionEnter2D(Collision2D other)
+    {
+        if (!_isHurting && other.gameObject.CompareTag("Enemy"))
+        {
+            Enemy enemy = other.gameObject.GetComponent<Enemy>();
+
+            int knockBackLeft = enemy.isFacingLeft ? -1 : 1;
+            if ((enemy.isFacingLeft && enemy.transform.position.x < transform.position.x) ||
+                (!enemy.isFacingLeft && enemy.transform.position.x > transform.position.x))
+            {
+                knockBackLeft *= -1;
+            }
+            
+            _anim.SetTrigger(Hit);
+            _rb.velocity = enemy.knockBack * new Vector2(knockBackLeft, 0.5f);
+            _isHurting = true;
+            StartCoroutine(StopHurting());
         }
     }
 
     private void FlipSprite(float hAxis)
     {
         bool isRunning = Mathf.Abs(hAxis) > Mathf.Epsilon;
-        _anim.SetBool("Running", isRunning);
+        _anim.SetBool(Running, isRunning);
         if (isRunning)
         {   
-            isFacingLeft = Mathf.Sign(hAxis) > Mathf.Epsilon;
+            _isFacingLeft = Mathf.Sign(hAxis) > Mathf.Epsilon;
             transform.localScale = new Vector3(Mathf.Sign(hAxis), 1, 1);
         }
     }
+
+    private IEnumerator StopHurting()
+    {
+        yield return new WaitForSeconds(0.5f);
+
+        _isHurting = false;
+    } 
 }

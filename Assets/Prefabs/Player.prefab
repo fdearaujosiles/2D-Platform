@@ -141,7 +141,7 @@ BoxCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: -0.05325222, y: 0.031265974}
+  m_Offset: {x: 0.07340574, y: 0.031265974}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -152,7 +152,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 1.1835842, y: 0.60288787}
+  m_Size: {x: 0.6171913, y: 0.60288787}
   m_EdgeRadius: 0
 --- !u!60 &5204680161544017417
 PolygonCollider2D:
@@ -197,4 +197,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speed: 7
   jumpSpeed: 12.5
-  _collider: {fileID: 5204680161544017417}
+  _feetCollider: {fileID: 5204680161544017417}
+  _bodyCollider: {fileID: 896479535994640971}
+  _destructible: {fileID: 0}
